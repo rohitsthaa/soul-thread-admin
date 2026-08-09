@@ -193,18 +193,26 @@ export default function SettingsClient({
   const [fonepayPassword, setFonepayPassword] = useState('');
   const [fonepayPrivateKey, setFonepayPrivateKey] = useState('');
   const [gatewaysSaved, setGatewaysSaved] = useState(false);
+  const [gatewaysError, setGatewaysError] = useState('');
   const [gatewaysPending, startGatewaysTransition] = useTransition();
 
   function handleGatewaysSave() {
     startGatewaysTransition(async () => {
-      await savePaymentGateways({
-        esewaEnabled, esewaMode: esewaGwMode, esewaProductCode: esewaProductCodeGw, esewaSecret: esewaSecretGw,
-        khaltiEnabled: khaltiEnabledGw, khaltiMode: khaltiModeGw, khaltiSecret: khaltiSecretGw,
-        fonepayEnabled, fonepayMode: fonepayModeGw, fonepayTerminalId,
-        fonepayUsername, fonepayPassword, fonepayPrivateKey,
-      });
-      setGatewaysSaved(true);
-      setTimeout(() => setGatewaysSaved(false), 2000);
+      try {
+        await savePaymentGateways({
+          esewaEnabled, esewaMode: esewaGwMode, esewaProductCode: esewaProductCodeGw, esewaSecret: esewaSecretGw,
+          khaltiEnabled: khaltiEnabledGw, khaltiMode: khaltiModeGw, khaltiSecret: khaltiSecretGw,
+          fonepayEnabled, fonepayMode: fonepayModeGw, fonepayTerminalId,
+          fonepayUsername, fonepayPassword, fonepayPrivateKey,
+        });
+        setGatewaysError('');
+        setGatewaysSaved(true);
+        setTimeout(() => setGatewaysSaved(false), 2000);
+      } catch (err) {
+        // Surface the API's actual message (e.g. the 402 plan-gate rejection) instead of
+        // letting it bubble up as an unhandled Server Action error with no visible cause.
+        setGatewaysError(err instanceof Error ? err.message : 'Could not save payment gateway settings.');
+      }
     });
   }
 
@@ -526,6 +534,8 @@ export default function SettingsClient({
             </>
           )}
         </div>
+
+        {gatewaysError && <p className="text-xs text-red-600">{gatewaysError}</p>}
       </SettingCard>
     </div>
   );
