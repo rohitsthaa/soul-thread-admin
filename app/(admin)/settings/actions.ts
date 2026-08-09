@@ -65,21 +65,31 @@ export async function saveBranding(data: {
   await revalidateStorefront();
 }
 
+// Returns a plain result object instead of throwing on a rejected request (e.g. the API's
+// 402 plan-gate response) — Next.js redacts a Server Action's thrown error message in
+// production builds the same way it redacts a render error, so a thrown Error here would
+// reach the client as generic "Server Components render" text with no way to recover the
+// real message. Returning data instead sidesteps that redaction entirely.
 export async function savePaymentGateways(data: {
   esewaEnabled: boolean; esewaMode: string; esewaProductCode: string; esewaSecret: string;
   khaltiEnabled: boolean; khaltiMode: string; khaltiSecret: string;
   fonepayEnabled: boolean; fonepayMode: string; fonepayTerminalId: string;
   fonepayUsername: string; fonepayPassword: string; fonepayPrivateKey: string;
-}) {
+}): Promise<{ ok: true } | { ok: false; error: string }> {
   await assertCanSettings();
-  await updatePaymentGatewayConfig({
-    esewaEnabled: data.esewaEnabled, esewaMode: data.esewaMode, esewaProductCode: data.esewaProductCode || null,
-    esewaSecret: data.esewaSecret || null,
-    khaltiEnabled: data.khaltiEnabled, khaltiMode: data.khaltiMode, khaltiSecret: data.khaltiSecret || null,
-    fonepayEnabled: data.fonepayEnabled, fonepayMode: data.fonepayMode, fonepayTerminalId: data.fonepayTerminalId || null,
-    fonepayUsername: data.fonepayUsername || null, fonepayPassword: data.fonepayPassword || null,
-    fonepayPrivateKey: data.fonepayPrivateKey || null,
-  });
+  try {
+    await updatePaymentGatewayConfig({
+      esewaEnabled: data.esewaEnabled, esewaMode: data.esewaMode, esewaProductCode: data.esewaProductCode || null,
+      esewaSecret: data.esewaSecret || null,
+      khaltiEnabled: data.khaltiEnabled, khaltiMode: data.khaltiMode, khaltiSecret: data.khaltiSecret || null,
+      fonepayEnabled: data.fonepayEnabled, fonepayMode: data.fonepayMode, fonepayTerminalId: data.fonepayTerminalId || null,
+      fonepayUsername: data.fonepayUsername || null, fonepayPassword: data.fonepayPassword || null,
+      fonepayPrivateKey: data.fonepayPrivateKey || null,
+    });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Could not save payment gateway settings.' };
+  }
   revalidatePath('/settings');
   await revalidateStorefront();
+  return { ok: true };
 }
