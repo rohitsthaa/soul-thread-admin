@@ -198,21 +198,22 @@ export default function SettingsClient({
 
   function handleGatewaysSave() {
     startGatewaysTransition(async () => {
-      try {
-        await savePaymentGateways({
-          esewaEnabled, esewaMode: esewaGwMode, esewaProductCode: esewaProductCodeGw, esewaSecret: esewaSecretGw,
-          khaltiEnabled: khaltiEnabledGw, khaltiMode: khaltiModeGw, khaltiSecret: khaltiSecretGw,
-          fonepayEnabled, fonepayMode: fonepayModeGw, fonepayTerminalId,
-          fonepayUsername, fonepayPassword, fonepayPrivateKey,
-        });
-        setGatewaysError('');
-        setGatewaysSaved(true);
-        setTimeout(() => setGatewaysSaved(false), 2000);
-      } catch (err) {
-        // Surface the API's actual message (e.g. the 402 plan-gate rejection) instead of
-        // letting it bubble up as an unhandled Server Action error with no visible cause.
-        setGatewaysError(err instanceof Error ? err.message : 'Could not save payment gateway settings.');
+      // savePaymentGateways returns { ok, error? } rather than throwing — a thrown Server
+      // Action error gets its message redacted by Next.js in production builds, which is
+      // exactly the generic "Server Components render" crash this replaces.
+      const result = await savePaymentGateways({
+        esewaEnabled, esewaMode: esewaGwMode, esewaProductCode: esewaProductCodeGw, esewaSecret: esewaSecretGw,
+        khaltiEnabled: khaltiEnabledGw, khaltiMode: khaltiModeGw, khaltiSecret: khaltiSecretGw,
+        fonepayEnabled, fonepayMode: fonepayModeGw, fonepayTerminalId,
+        fonepayUsername, fonepayPassword, fonepayPrivateKey,
+      });
+      if (!result.ok) {
+        setGatewaysError(result.error);
+        return;
       }
+      setGatewaysError('');
+      setGatewaysSaved(true);
+      setTimeout(() => setGatewaysSaved(false), 2000);
     });
   }
 
