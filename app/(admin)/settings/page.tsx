@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSettings } from '@/lib/api';
+import { getSettings, getPaymentGatewayConfig } from '@/lib/api';
 import { getAdmin, can } from '@/lib/auth';
 import { currentStoreId } from '@/lib/store-context';
 import SettingsClient from './SettingsClient';
@@ -7,7 +7,7 @@ import SettingsClient from './SettingsClient';
 export default async function SettingsPage() {
   const admin = await getAdmin();
   if (!can(admin?.role, 'settings')) redirect('/dashboard'); // staff can't change store settings
-  const settings = await getSettings();
+  const [settings, paymentGateways] = await Promise.all([getSettings(), getPaymentGatewayConfig()]);
   const storeId = await currentStoreId();
 
   return (
@@ -33,6 +33,7 @@ export default async function SettingsPage() {
         initialFontFamily={settings.font_family ?? ''}
         initialLogoUrl={settings.logo_url ?? ''}
         initialOgImage={settings.og_image ?? ''}
+        initialPaymentGateways={paymentGateways}
       />
     </main>
   );

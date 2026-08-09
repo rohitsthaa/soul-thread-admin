@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import ImageUploader from '@/components/ImageUploader';
-import { saveAboutImage, savePaymentQr, saveContactInfo, saveCurrency, saveBranding } from './actions';
+import { saveAboutImage, savePaymentQr, saveContactInfo, saveCurrency, saveBranding, savePaymentGateways } from './actions';
+import type { PaymentGatewayConfigView } from '@/lib/api';
 
 function SettingCard({
   title,
@@ -87,6 +88,7 @@ export default function SettingsClient({
   initialFontFamily,
   initialLogoUrl,
   initialOgImage,
+  initialPaymentGateways,
 }: {
   initialAboutImage: string;
   initialPaymentQr: string;
@@ -101,6 +103,7 @@ export default function SettingsClient({
   initialFontFamily: string;
   initialLogoUrl: string;
   initialOgImage: string;
+  initialPaymentGateways: PaymentGatewayConfigView;
 }) {
   // About image
   const [aboutImage, setAboutImage] = useState(initialAboutImage);
@@ -172,6 +175,36 @@ export default function SettingsClient({
       await saveContactInfo(phone, instagram, contactEmail, location);
       setContactSaved(true);
       setTimeout(() => setContactSaved(false), 2000);
+    });
+  }
+
+  // Payment gateways (eSewa/Khalti/Fonepay) — self-serve merchant credentials
+  const [esewaEnabled, setEsewaEnabled] = useState(initialPaymentGateways.esewa.enabled);
+  const [esewaGwMode, setEsewaGwMode] = useState(initialPaymentGateways.esewa.mode);
+  const [esewaProductCodeGw, setEsewaProductCodeGw] = useState(initialPaymentGateways.esewa.productCode);
+  const [esewaSecretGw, setEsewaSecretGw] = useState('');
+  const [khaltiEnabledGw, setKhaltiEnabledGw] = useState(initialPaymentGateways.khalti.enabled);
+  const [khaltiModeGw, setKhaltiModeGw] = useState(initialPaymentGateways.khalti.mode);
+  const [khaltiSecretGw, setKhaltiSecretGw] = useState('');
+  const [fonepayEnabled, setFonepayEnabled] = useState(initialPaymentGateways.fonepay.enabled);
+  const [fonepayModeGw, setFonepayModeGw] = useState(initialPaymentGateways.fonepay.mode);
+  const [fonepayTerminalId, setFonepayTerminalId] = useState(initialPaymentGateways.fonepay.terminalId);
+  const [fonepayUsername, setFonepayUsername] = useState('');
+  const [fonepayPassword, setFonepayPassword] = useState('');
+  const [fonepayPrivateKey, setFonepayPrivateKey] = useState('');
+  const [gatewaysSaved, setGatewaysSaved] = useState(false);
+  const [gatewaysPending, startGatewaysTransition] = useTransition();
+
+  function handleGatewaysSave() {
+    startGatewaysTransition(async () => {
+      await savePaymentGateways({
+        esewaEnabled, esewaMode: esewaGwMode, esewaProductCode: esewaProductCodeGw, esewaSecret: esewaSecretGw,
+        khaltiEnabled: khaltiEnabledGw, khaltiMode: khaltiModeGw, khaltiSecret: khaltiSecretGw,
+        fonepayEnabled, fonepayMode: fonepayModeGw, fonepayTerminalId,
+        fonepayUsername, fonepayPassword, fonepayPrivateKey,
+      });
+      setGatewaysSaved(true);
+      setTimeout(() => setGatewaysSaved(false), 2000);
     });
   }
 
@@ -335,6 +368,164 @@ export default function SettingsClient({
             />
           </div>
         )}
+      </SettingCard>
+
+      {/* Payment gateways (self-serve merchant credentials) */}
+      <SettingCard
+        title="Payment gateways"
+        description="Connect your own eSewa, Khalti, and Fonepay merchant accounts so customers can pay online at checkout."
+        onSave={handleGatewaysSave}
+        isPending={gatewaysPending}
+        saved={gatewaysSaved}
+      >
+        {/* eSewa */}
+        <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-gray-800">eSewa</p>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={esewaEnabled}
+              onClick={() => setEsewaEnabled((v) => !v)}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/40 ${
+                esewaEnabled ? 'bg-stone-800' : 'bg-stone-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  esewaEnabled ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+          {esewaEnabled && (
+            <>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5 font-medium">Mode</label>
+                <select
+                  value={esewaGwMode}
+                  onChange={(e) => setEsewaGwMode(e.target.value as 'test' | 'production')}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-stone-300"
+                >
+                  <option value="test">Test (sandbox)</option>
+                  <option value="production">Production (live)</option>
+                </select>
+              </div>
+              <Field label="Merchant product code" value={esewaProductCodeGw} onChange={setEsewaProductCodeGw} placeholder="EPAYTEST" mono />
+              <Field
+                label="Merchant secret key"
+                value={esewaSecretGw}
+                onChange={setEsewaSecretGw}
+                placeholder={initialPaymentGateways.esewa.hasSecret ? 'Already saved — enter to replace' : 'Enter your eSewa secret key'}
+                mono
+              />
+            </>
+          )}
+        </div>
+
+        {/* Khalti */}
+        <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-gray-800">Khalti</p>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={khaltiEnabledGw}
+              onClick={() => setKhaltiEnabledGw((v) => !v)}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/40 ${
+                khaltiEnabledGw ? 'bg-stone-800' : 'bg-stone-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  khaltiEnabledGw ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+          {khaltiEnabledGw && (
+            <>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5 font-medium">Mode</label>
+                <select
+                  value={khaltiModeGw}
+                  onChange={(e) => setKhaltiModeGw(e.target.value as 'test' | 'production')}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-stone-300"
+                >
+                  <option value="test">Test (sandbox)</option>
+                  <option value="production">Production (live)</option>
+                </select>
+              </div>
+              <Field
+                label="Live secret key"
+                value={khaltiSecretGw}
+                onChange={setKhaltiSecretGw}
+                placeholder={initialPaymentGateways.khalti.hasSecret ? 'Already saved — enter to replace' : 'Enter your Khalti secret key'}
+                mono
+              />
+            </>
+          )}
+        </div>
+
+        {/* Fonepay */}
+        <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-gray-800">Fonepay</p>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={fonepayEnabled}
+              onClick={() => setFonepayEnabled((v) => !v)}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/40 ${
+                fonepayEnabled ? 'bg-stone-800' : 'bg-stone-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  fonepayEnabled ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+          {fonepayEnabled && (
+            <>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5 font-medium">Mode</label>
+                <select
+                  value={fonepayModeGw}
+                  onChange={(e) => setFonepayModeGw(e.target.value as 'test' | 'production')}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-stone-300"
+                >
+                  <option value="test">Test (sandbox)</option>
+                  <option value="production">Production (live)</option>
+                </select>
+              </div>
+              <Field label="Terminal ID" value={fonepayTerminalId} onChange={setFonepayTerminalId} placeholder="4271423331147924" mono />
+              <Field
+                label="Username"
+                value={fonepayUsername}
+                onChange={setFonepayUsername}
+                placeholder={initialPaymentGateways.fonepay.hasUsername ? 'Already saved — enter to replace' : 'Enter your Fonepay username'}
+                mono
+              />
+              <Field
+                label="Password"
+                value={fonepayPassword}
+                onChange={setFonepayPassword}
+                placeholder={initialPaymentGateways.fonepay.hasPassword ? 'Already saved — enter to replace' : 'Enter your Fonepay password'}
+                mono
+              />
+              <Field
+                label="Private key"
+                value={fonepayPrivateKey}
+                onChange={setFonepayPrivateKey}
+                placeholder={initialPaymentGateways.fonepay.hasPrivateKey ? 'Already saved — enter to replace' : 'Enter your Fonepay PKCS8 private key'}
+                mono
+                hint="Base64 or hex, no PEM headers — matches the key format Fonepay provides in the merchant portal."
+              />
+            </>
+          )}
+        </div>
       </SettingCard>
     </div>
   );

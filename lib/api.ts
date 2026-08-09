@@ -409,6 +409,28 @@ export function updateStorePaymentConfig(id: string, data: Record<string, unknow
   return apiFetch<{ ok: boolean }>(`/stores/${encodeURIComponent(id)}/payment-config`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
+export type PaymentGatewayConfigView = {
+  esewa: { enabled: boolean; mode: 'test' | 'production'; productCode: string; hasSecret: boolean };
+  khalti: { enabled: boolean; mode: 'test' | 'production'; hasSecret: boolean };
+  fonepay: {
+    enabled: boolean; mode: 'test' | 'production'; terminalId: string;
+    hasUsername: boolean; hasPassword: boolean; hasPrivateKey: boolean;
+  };
+};
+
+export function getPaymentGatewayConfig() {
+  return apiFetch<PaymentGatewayConfigView>('/settings/payments/config');
+}
+
+export function updatePaymentGatewayConfig(data: {
+  esewaEnabled: boolean; esewaMode?: string; esewaProductCode?: string | null; esewaSecret?: string | null;
+  khaltiEnabled: boolean; khaltiMode?: string; khaltiSecret?: string | null;
+  fonepayEnabled: boolean; fonepayMode?: string; fonepayTerminalId?: string | null;
+  fonepayUsername?: string | null; fonepayPassword?: string | null; fonepayPrivateKey?: string | null;
+}) {
+  return apiFetch<{ ok: boolean }>('/settings/payments/config', { method: 'PUT', body: JSON.stringify(data) });
+}
+
 export type StoreCourierConfigView = {
   ncm: { enabled: boolean; fromBranch: string; hasToken: boolean; webhookRegistered: boolean; forceRealHost: boolean };
 };
