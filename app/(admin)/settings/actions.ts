@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { updateSetting, revalidateStorefront } from '@/lib/api';
+import { updateSetting, revalidateStorefront, updatePaymentGatewayConfig } from '@/lib/api';
 import { getAdmin, can } from '@/lib/auth';
 
 /** Settings are owner-only (super + store-admin); staff are blocked. */
@@ -61,6 +61,25 @@ export async function saveBranding(data: {
     updateSetting('logo_url', data.logoUrl.trim()),
     updateSetting('og_image', data.ogImage.trim()),
   ]);
+  revalidatePath('/settings');
+  await revalidateStorefront();
+}
+
+export async function savePaymentGateways(data: {
+  esewaEnabled: boolean; esewaMode: string; esewaProductCode: string; esewaSecret: string;
+  khaltiEnabled: boolean; khaltiMode: string; khaltiSecret: string;
+  fonepayEnabled: boolean; fonepayMode: string; fonepayTerminalId: string;
+  fonepayUsername: string; fonepayPassword: string; fonepayPrivateKey: string;
+}) {
+  await assertCanSettings();
+  await updatePaymentGatewayConfig({
+    esewaEnabled: data.esewaEnabled, esewaMode: data.esewaMode, esewaProductCode: data.esewaProductCode || null,
+    esewaSecret: data.esewaSecret || null,
+    khaltiEnabled: data.khaltiEnabled, khaltiMode: data.khaltiMode, khaltiSecret: data.khaltiSecret || null,
+    fonepayEnabled: data.fonepayEnabled, fonepayMode: data.fonepayMode, fonepayTerminalId: data.fonepayTerminalId || null,
+    fonepayUsername: data.fonepayUsername || null, fonepayPassword: data.fonepayPassword || null,
+    fonepayPrivateKey: data.fonepayPrivateKey || null,
+  });
   revalidatePath('/settings');
   await revalidateStorefront();
 }
